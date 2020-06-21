@@ -237,14 +237,18 @@ typename vector<T>::iterator vector<T>::erase(const_iterator pos) {
 
 template <typename T>
 typename vector<T>::iterator vector<T>::erase(const_iterator first, const_iterator last) {
-    size_t length = last - first;
+    ptrdiff_t length = last - first;
     size_t ind = first - begin();
+
+    if (length == 0) {
+        return begin() + ind;
+    }
 
     for (size_t i = ind; i < size_ - length; i++) {
         data_[i] = data_[i + length];
     }
-    for (size_t i = size_ - length; i < size_; i++) {
-        data_[i].~T();
+    for (size_t i = 1; i <= length; i++) {
+        data_[size_ - i].~T();
     }
     size_ -= length;
 
@@ -299,3 +303,4 @@ template <typename T>
 T* vector<T>::allocate(size_t size) {
     return (size == 0 ? nullptr : static_cast<T*>(operator new(size * sizeof(T))));
 }
+
