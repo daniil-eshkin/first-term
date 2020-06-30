@@ -230,12 +230,7 @@ big_integer &operator<<=(big_integer &a, int s) {
             }
         }
         s %= 32;
-        if (s == 31) {
-            a *= (1 << 30);
-            a *= 2;
-        } else {
-            a *= (1 << s);
-        }
+        a *= ((uint32_t)1 << s);
         return a;
     }
 }
@@ -265,12 +260,7 @@ big_integer &operator>>=(big_integer &a, int s) {
         if (a.further != 0) {
             a -= ((uint32_t)1 << s) - 1;
         }
-        if (s == 31) {
-            a /= (1 << 30);
-            a /= 2;
-        } else {
-            a /= (1 << s);
-        }
+        a /= ((uint32_t)1 << s);
         return a;
     }
 }
@@ -425,7 +415,7 @@ void unsigned_div(big_integer &a, const big_integer &b, big_integer &q, big_inte
 
 uint32_t div_3_2(uint32_t a2, uint32_t a1, uint32_t a0, uint32_t b1, uint32_t b0) {
     uint64_t q = (((uint64_t)a2 << 32) + a1) / b1;
-    big_integer a(a2);
+    /*big_integer a(a2);
     a <<= 32;
     a += a1;
     a <<= 32;
@@ -436,6 +426,20 @@ uint32_t div_3_2(uint32_t a2, uint32_t a1, uint32_t a0, uint32_t b1, uint32_t b0
 
     while (b * q > a) {
         q--;
+    }*/
+    while (true) {
+        uint32_t c2, c1, c0;
+        uint64_t d = q * b0;
+        c0 = (uint32_t)d;
+        c1 = (uint32_t)(d >> 32);
+        d = c1 + q * b1;
+        c1 = (uint32_t)d;
+        c2 = (uint32_t)(d >> 32);
+        if (c2 > a2 || (c2 == a2 && c1 > a1) || (c2 == a2 && c1 == a1 && c0 > a0)) {
+            q--;
+        } else {
+            break;
+        }
     }
     return (uint32_t)q;
 }
@@ -446,12 +450,13 @@ void unsigned_div_small_ans(big_integer a, big_integer b, uint32_t &q, big_integ
         r = a;
         return;
     }
-    uint32_t t = 0;
-    while (b[b.size() - 1] < ((uint32_t)1 << 31)) {
-        a *= 2;
-        b *= 2;
+    uint32_t x = ((uint32_t)1 << 31), t = 0;
+    while ((b[b.size() - 1] & x) == 0) {
+        x >>= 1;
         t++;
     }
+    a <<= t;
+    b <<= t;
     if (a.size() == b.size()) {
         q = 1;
     } else {
