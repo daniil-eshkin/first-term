@@ -8,10 +8,8 @@ class big_integer {
     uint32_t further;
 
     uint32_t operator[](size_t) const;
-    size_t size() const;
 
     friend void trim(big_integer&, size_t);
-    friend void shrink(big_integer&);
 
     friend big_integer &evaluate(big_integer&, const big_integer&, uint32_t,
         uint32_t (*)(uint32_t, uint32_t, uint32_t&));
@@ -23,8 +21,6 @@ class big_integer {
     friend void unsigned_div(big_integer&, big_integer&, big_integer&, big_integer&);
     friend void unsigned_div_small_ans(big_integer&, big_integer&, uint32_t&, big_integer&);
     friend big_integer suffix(const big_integer&, size_t);
-
-    friend bool is_zero(const big_integer&);
 
 public:
     big_integer();
