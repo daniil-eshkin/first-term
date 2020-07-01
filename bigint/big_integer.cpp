@@ -1,6 +1,7 @@
 #include "big_integer.h"
 #include <cmath>
 #include <algorithm>
+#include <stdexcept>
 
 void trim(big_integer &a, size_t s) {
     while (a.digits.size() < s) {
