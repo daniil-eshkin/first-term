@@ -67,8 +67,8 @@ big_integer::big_integer(uint32_t a) {
 }
 
 big_integer::big_integer(uint64_t a) {
-    digits.push_back((uint32_t)a);
-    digits.push_back((uint32_t)(a >> 32));
+    digits.push_back(static_cast<uint32_t>(a & UINT32_MAX));
+    digits.push_back(static_cast<uint32_t>((a >> 32) & UINT32_MAX));
     further = 0;
 }
 
@@ -229,7 +229,7 @@ big_integer &operator<<=(big_integer &a, int s) {
         }
         s %= 32;
         if (s != 0) {
-            a *= ((uint32_t)1 << s);
+            a *= (1u << s);
         }
         return a;
     }
@@ -260,9 +260,9 @@ big_integer &operator>>=(big_integer &a, int s) {
         s %= 32;
         if (s != 0) {
             if (a.further != 0) {
-               a -= ((uint32_t)1 << s) - 1;
+               a -= (1u << s) - 1;
             }
-            a /= ((uint32_t)1 << s);
+            a /= (1u << s);
         }
         return a;
     }
@@ -376,10 +376,10 @@ big_integer operator*(big_integer a, big_integer b) {
     for (size_t i = 0; i < n; ++i) {
         uint32_t d = 0;
         for (size_t j = 0; j < m || d; ++j) {
-            uint64_t cur = (uint64_t)c.digits[i + j]
-                    + (uint64_t)a.digits[i] * b[j] + d;
-            c.digits[i + j] = (uint32_t)cur;
-            d = (uint32_t)(cur >> 32);
+            uint64_t cur = static_cast<uint64_t>(a.digits[i]) * b[j]
+                    + d + c.digits[i + j];
+            c.digits[i + j] = static_cast<uint32_t>(cur & UINT32_MAX);
+            d = static_cast<uint32_t>(cur >> 32);
         }
     }
     while (c.digits.size() > 1 && c.digits.back() == c.further) {
@@ -405,9 +405,9 @@ big_integer div_long_short(big_integer a, uint32_t b) {
     uint32_t d = 0;
     for (size_t i = n - 1;; --i) {
         uint64_t cur = a.digits[i] +
-                (((uint64_t)d) << 32);
-        a.digits[i] = (uint32_t)(cur / b);
-        d = (uint32_t)(cur % b);
+                (static_cast<uint64_t>(d) << 32);
+        a.digits[i] = static_cast<uint32_t>(cur / b & UINT32_MAX);
+        d = static_cast<uint32_t>(cur % b & UINT32_MAX);
         if (i == 0) {
             break;
         }
@@ -436,7 +436,7 @@ void unsigned_div(big_integer &a, big_integer &b, big_integer &q, big_integer &r
         r = a;
         return;
     }
-    uint32_t x = ((uint32_t)1 << 31), t = 0;
+    uint32_t x = (1u << 31), t = 0;
         while ((b.digits.back() & x) == 0) {
             x >>= 1;
             t++;
@@ -467,15 +467,15 @@ void unsigned_div(big_integer &a, big_integer &b, big_integer &q, big_integer &r
 }
 
 uint32_t div_3_2(uint32_t a2, uint32_t a1, uint32_t a0, uint32_t b1, uint32_t b0) {
-    uint64_t q = (((uint64_t)a2 << 32) + a1) / b1;
+    uint64_t q = ((static_cast<uint64_t>(a2) << 32) + a1) / b1;
     while (true) {
         uint32_t c2, c1, c0;
         uint64_t d = q * b0;
-        c0 = (uint32_t)d;
-        c1 = (uint32_t)(d >> 32);
+        c0 = static_cast<uint32_t>(d & UINT32_MAX);
+        c1 = static_cast<uint32_t>(d >> 32);
         d = c1 + q * b1;
-        c1 = (uint32_t)d;
-        c2 = (uint32_t)(d >> 32);
+        c1 = static_cast<uint32_t>(d & UINT32_MAX);
+        c2 = static_cast<uint32_t>(d >> 32);
         if (c2 > a2 || (c2 == a2 && c1 > a1) || (c2 == a2 && c1 == a1 && c0 > a0)) {
             --q;
         } else {
