@@ -22,6 +22,8 @@ class big_integer {
     friend void unsigned_div_small_ans(big_integer&, big_integer&, uint32_t&, big_integer&);
     friend big_integer suffix(const big_integer&, size_t);
 
+    friend void negate(big_integer&);
+
 public:
     big_integer();
     big_integer(int);
@@ -80,4 +82,3 @@ public:
     friend big_integer &operator%=(big_integer&, const big_integer&);
     friend big_integer operator%(big_integer, const big_integer&);
 };
-

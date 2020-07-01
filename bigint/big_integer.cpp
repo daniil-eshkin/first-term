@@ -1,7 +1,6 @@
 #include "big_integer.h"
 #include <cmath>
 #include <algorithm>
-#include <iostream>
 
 void trim(big_integer &a, size_t s) {
     while (a.digits.size() < s) {
@@ -106,7 +105,7 @@ std::string to_string(big_integer a) {
     int sign = 1;
     if (a.further != 0) {
         sign = -1;
-        a = -a;
+        negate(a);
     }
     while (a.further != 0 || a.digits.size() != 1 || a.digits[0] != 0) {
         s.push_back((a % 10).digits[0] + '0');
@@ -307,12 +306,16 @@ big_integer operator++(big_integer &a, int) {
     return old;
 }
 
-big_integer operator-(big_integer a) {
+void negate(big_integer& a) {
     for (size_t i = 0; i < a.digits.size(); ++i) {
         a.digits[i] = ~a.digits[i];
     }
     a.further = ~a.further;
     ++a;
+}
+
+big_integer operator-(big_integer a) {
+    negate(a);
     return a;
 }
 
@@ -360,11 +363,11 @@ big_integer operator*(big_integer a, big_integer b) {
     int sign = 1;
     if (a.further != 0) {
         sign = -sign;
-        a = -a;
+        negate(a);
     }
     if (b.further != 0) {
         sign = -sign;
-        b = -b;
+        negate(b);
     }
     big_integer c;
     uint32_t n = a.digits.size(), m = b.digits.size();
@@ -382,7 +385,7 @@ big_integer operator*(big_integer a, big_integer b) {
         c.digits.pop_back();
     }
     if (sign == -1) {
-        c = -c;
+        negate(c);
     }
     return c;
 }
@@ -395,7 +398,7 @@ big_integer div_long_short(big_integer a, uint32_t b) {
     }
     int sign = (a.further == 0 ? 1 : -1);
     if (a.further > 0) {
-        a = -a;
+        negate(a);
     }
     size_t n = a.digits.size();
     uint32_t d = 0;
@@ -412,7 +415,7 @@ big_integer div_long_short(big_integer a, uint32_t b) {
         a.digits.pop_back();
     }
     if (sign == -1) {
-        a = -a;
+        negate(a);
     }
     return a;
 }
@@ -432,6 +435,13 @@ void unsigned_div(big_integer &a, big_integer &b, big_integer &q, big_integer &r
         r = a;
         return;
     }
+    uint32_t x = ((uint32_t)1 << 31), t = 0;
+        while ((b.digits.back() & x) == 0) {
+            x >>= 1;
+            t++;
+        }
+    a <<= t;
+    b <<= t;
     uint32_t q1;
     size_t n = a.digits.size(), m = b.digits.size();
     if (n == m) {
@@ -451,6 +461,8 @@ void unsigned_div(big_integer &a, big_integer &b, big_integer &q, big_integer &r
             q.digits[0] = q1;
         }
     }
+    a >>= t;
+    b >>= t;
 }
 
 uint32_t div_3_2(uint32_t a2, uint32_t a1, uint32_t a0, uint32_t b1, uint32_t b0) {
@@ -478,21 +490,12 @@ void unsigned_div_small_ans(big_integer &a, big_integer &b, uint32_t &q, big_int
         r = a;
         return;
     }
-    uint32_t x = ((uint32_t)1 << 31), t = 0;
-    while ((b[b.digits.size() - 1] & x) == 0) {
-        x >>= 1;
-        t++;
-    }
-    a <<= t;
-    b <<= t;
     size_t n = a.digits.size(), m = b.digits.size();
     if (n == m) {
         q = 1;
     } else {
         q = div_3_2(a[n - 1], a[n - 2], a[n - 3], b[m - 1], b[m - 2]);
     }
-    a >>= t;
-    b >>= t;
     r = a - q * b;
     if (r.further > 0) {
         --q;
@@ -503,19 +506,19 @@ void unsigned_div_small_ans(big_integer &a, big_integer &b, uint32_t &q, big_int
 big_integer operator/(big_integer a, big_integer b) {
     if (b.digits.size() == 1) {
         if (b.further > 0) {
-            a = -a;
-            b = -b;
+            negate(a);
+            negate(b);
         }
         return div_long_short(a, b[0]);
     }
     int sign = 1;
     if (a.further > 0) {
         sign = -sign;
-        a = -a;
+        negate(a);
     }
     if (b.further > 0) {
         sign = -sign;
-        b = -b;
+        negate(b);
     }
     if (a < b) {
         return 0;
@@ -523,7 +526,7 @@ big_integer operator/(big_integer a, big_integer b) {
     big_integer q, r;
     unsigned_div(a, b, q, r);
     if (sign == -1) {
-        q = -q;
+        negate(q);
     }
 
     return q;
