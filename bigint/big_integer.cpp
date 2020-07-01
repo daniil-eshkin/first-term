@@ -59,6 +59,10 @@ int unsigned_cmp(const big_integer &a, const big_integer &b) {
     return 0;
 }
 
+bool is_zero(const big_integer &a) {
+    return (a.further == 0 && a.size() == 1 && a.digits[0] == 0);
+}
+
 big_integer::big_integer() {
     digits.push_back(0);
     further = 0;
@@ -86,7 +90,7 @@ big_integer::big_integer(const big_integer &a) {
 }
 
 big_integer::big_integer(const std::string &s) {
-    digits.assign(1, 0);
+    digits.push_back(0);
     further = 0;
     if (s.empty()) {
         return;
@@ -107,7 +111,7 @@ big_integer::big_integer(const std::string &s) {
 }
 
 std::string to_string(big_integer a) {
-    if (a == 0) {
+    if (is_zero(a)) {
         return "0";
     }
     std::string s;
@@ -116,7 +120,7 @@ std::string to_string(big_integer a) {
         sign = -1;
         a = -a;
     }
-    while (a != 0) {
+    while (!is_zero(a)) {
         s.push_back((a % 10)[0] + '0');
         a /= 10;
     }
@@ -216,13 +220,13 @@ big_integer operator^(big_integer a, const big_integer &b) {
 }
 
 big_integer &operator<<=(big_integer &a, int s) {
-    if (s == 0 || a == 0) {
+    if (s == 0 || is_zero(a)) {
         return a;
     } else if (s < 0) {
         return a >>= -s;
     } else {
         uint32_t s1 = s / 32;
-        a.digits.resize(a.size() + s1);
+        trim(a, a.size() + s1);
         for (size_t i = a.size() - 1;; i--) {
             a.digits[i] = (i >= s1 ? a[i - s1] : 0);
             if (i == 0) {
@@ -230,7 +234,9 @@ big_integer &operator<<=(big_integer &a, int s) {
             }
         }
         s %= 32;
-        a *= ((uint32_t)1 << s);
+        if (s != 0) {
+            a *= ((uint32_t)1 << s);
+        }
         return a;
     }
 }
@@ -247,7 +253,8 @@ big_integer &operator>>=(big_integer &a, int s) {
     } else {
         uint32_t s1 = s / 32;
         if (s1 >= a.size()) {
-            a.digits.assign(1, a.further);
+            a.digits.clear();
+            a.digits.push_back(a.further);
             return a;
         }
         for (size_t i = 0; i < a.size() - s1; i++) {
@@ -257,10 +264,12 @@ big_integer &operator>>=(big_integer &a, int s) {
             a.digits.pop_back();
         }
         s %= 32;
-        if (a.further != 0) {
-            a -= ((uint32_t)1 << s) - 1;
+        if (s != 0) {
+            if (a.further != 0) {
+               a -= ((uint32_t)1 << s) - 1;
+            }
+            a /= ((uint32_t)1 << s);
         }
-        a /= ((uint32_t)1 << s);
         return a;
     }
 }
@@ -320,9 +329,9 @@ big_integer &operator*=(big_integer &a, const big_integer &b) {
 }
 
 big_integer operator*(big_integer a, big_integer b) {
-    if (a == 0) {
+    if (is_zero(a)) {
         return a;
-    } else if (b == 0) {
+    } else if (is_zero(b)) {
         return a = 0;
     }
     int sign = 1;
@@ -353,9 +362,9 @@ big_integer operator*(big_integer a, big_integer b) {
 }
 
 big_integer div_long_short(big_integer a, uint32_t b) {
-    if (a == 0) {
+    if (is_zero(a)) {
         return a;
-    } else if (b == 0) {
+    } else if (is_zero(b)) {
         throw std::runtime_error("Division by zero");
     }
     int sign = (a.further == 0 ? 1 : -1);
@@ -388,7 +397,7 @@ big_integer suffix(const big_integer &a, size_t len) {
     return b;
 }
 
-void unsigned_div(big_integer &a, const big_integer &b, big_integer &q, big_integer &r) {
+void unsigned_div(big_integer &a, big_integer &b, big_integer &q, big_integer &r) {
     if (a < b) {
         q = 0;
         r = a;
@@ -400,7 +409,8 @@ void unsigned_div(big_integer &a, const big_integer &b, big_integer &q, big_inte
         q = q1;
         return;
     }
-    unsigned_div_small_ans(suffix(a, b.size()), b, q1, r);
+    r = suffix(a, b.size());
+    unsigned_div_small_ans(r, b, q1, r);
     q = q1;
     for (size_t i = 0; i < a.size() - b.size(); i++) {
         q <<= 32;
@@ -415,18 +425,6 @@ void unsigned_div(big_integer &a, const big_integer &b, big_integer &q, big_inte
 
 uint32_t div_3_2(uint32_t a2, uint32_t a1, uint32_t a0, uint32_t b1, uint32_t b0) {
     uint64_t q = (((uint64_t)a2 << 32) + a1) / b1;
-    /*big_integer a(a2);
-    a <<= 32;
-    a += a1;
-    a <<= 32;
-    a += a0;
-    big_integer b(b1);
-    b <<= 32;
-    b += b0;
-
-    while (b * q > a) {
-        q--;
-    }*/
     while (true) {
         uint32_t c2, c1, c0;
         uint64_t d = q * b0;
@@ -444,7 +442,7 @@ uint32_t div_3_2(uint32_t a2, uint32_t a1, uint32_t a0, uint32_t b1, uint32_t b0
     return (uint32_t)q;
 }
 
-void unsigned_div_small_ans(big_integer a, big_integer b, uint32_t &q, big_integer &r) {
+void unsigned_div_small_ans(big_integer &a, big_integer &b, uint32_t &q, big_integer &r) {
     if (a < b) {
         q = 0;
         r = a;

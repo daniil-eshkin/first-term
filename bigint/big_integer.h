@@ -20,9 +20,11 @@ class big_integer {
 
     friend big_integer div_long_short(big_integer, uint32_t);
 
-    friend void unsigned_div(big_integer&, const big_integer&, big_integer&, big_integer&);
-    friend void unsigned_div_small_ans(big_integer, big_integer, uint32_t&, big_integer&);
+    friend void unsigned_div(big_integer&, big_integer&, big_integer&, big_integer&);
+    friend void unsigned_div_small_ans(big_integer&, big_integer&, uint32_t&, big_integer&);
     friend big_integer suffix(const big_integer&, size_t);
+
+    friend bool is_zero(const big_integer&);
 
 public:
     big_integer();
