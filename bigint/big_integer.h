@@ -2,17 +2,21 @@
 
 #include <vector>
 #include <string>
+#include <functional>
 
 class big_integer {
-    std::vector<uint32_t> digits;
     uint32_t further;
+    std::vector<uint32_t> digits;
 
     uint32_t operator[](size_t) const;
 
     friend void trim(big_integer&, size_t);
+    friend void shrink(big_integer&);
 
     friend big_integer &evaluate(big_integer&, const big_integer&, uint32_t,
-        uint32_t (*)(uint32_t, uint32_t, uint32_t&));
+        std::function<uint32_t(uint32_t, uint32_t, uint32_t&)>&);
+    friend big_integer &bitwise(big_integer &, const big_integer &,
+        std::function<uint32_t(uint32_t, uint32_t)>&);
 
     friend int unsigned_cmp(const big_integer&, const big_integer&);
 

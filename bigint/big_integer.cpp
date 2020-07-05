@@ -9,31 +9,57 @@ void trim(big_integer &a, size_t s) {
     }
 }
 
+void shrink(big_integer &a) {
+    while (a.digits.size() > 1 && a.digits.back() == a.further) {
+        a.digits.pop_back();
+    }
+}
+
 uint32_t big_integer::operator[](size_t index) const {
     return (index < digits.size() ? digits[index] : further);
 }
 
-static uint32_t adc(uint32_t a, uint32_t b, uint32_t &d) {
+static std::function<uint32_t(uint32_t, uint32_t, uint32_t&)> adc =
+        [](uint32_t a, uint32_t b, uint32_t &d) {
     uint32_t c = a + b + d;
     d = (c < a || (d == 1 && c <= a));
     return c;
-}
+};
 
-static uint32_t sbb(uint32_t a, uint32_t b, uint32_t &d) {
-    return adc(a, ~b, d);
-}
+static std::function<uint32_t(uint32_t, uint32_t, uint32_t&)> sbb =
+        [](uint32_t a, uint32_t b, uint32_t &d) { return adc(a, ~b, d); };
 
-big_integer &evaluate(big_integer &a, const big_integer& b, uint32_t d,
-    uint32_t (*eval)(uint32_t, uint32_t, uint32_t&)) {
+static std::function<uint32_t(uint32_t, uint32_t)> and_ =
+        [](uint32_t a, uint32_t b) { return a & b; };
+
+static std::function<uint32_t(uint32_t, uint32_t)> or_ =
+        [](uint32_t a, uint32_t b) { return a | b; };
+
+static std::function<uint32_t(uint32_t, uint32_t)> xor_ =
+        [](uint32_t a, uint32_t b) { return a ^ b; };
+
+big_integer &evaluate(big_integer &a, const big_integer &b, uint32_t d,
+    std::function<uint32_t(uint32_t, uint32_t, uint32_t&)> &eval) {
     trim(a, b.digits.size());
     a.digits.push_back(a.further);
     for (size_t i = 0; i < a.digits.size(); ++i) {
         a.digits[i] = eval(a.digits[i], b[i], d);
     }
     a.further = (a.digits.back() & 2 ? ~0 : 0);
-    while (a.digits.size() > 1 && a.digits.back() == a.further) {
-        a.digits.pop_back();
+    shrink(a);
+
+    return a;
+}
+
+big_integer &bitwise(big_integer &a, const big_integer &b,
+    std::function<uint32_t(uint32_t, uint32_t)> &eval) {
+    trim(a, b.digits.size());
+    for (size_t i = 0; i < a.digits.size(); ++i) {
+        a.digits[i] = eval(a[i], b[i]);
     }
+    a.further = eval(a.further, b.further);
+    shrink(a);
+
     return a;
 }
 
@@ -51,28 +77,30 @@ int unsigned_cmp(const big_integer &a, const big_integer &b) {
     return 0;
 }
 
-big_integer::big_integer() {
+big_integer::big_integer()
+    : further(0) {
     digits.push_back(0);
-    further = 0;
 }
 
-big_integer::big_integer(int a) {
+big_integer::big_integer(int a)
+    : further(a < 0 ? ~0 : 0) {
     digits.push_back(a);
-    further = (a < 0 ? ~0 : 0);
 }
 
-big_integer::big_integer(uint32_t a) {
+big_integer::big_integer(uint32_t a)
+    : further(0) {
     digits.push_back(a);
-    further = 0;
 }
 
-big_integer::big_integer(uint64_t a) {
+big_integer::big_integer(uint64_t a)
+    : further(0) {
     digits.push_back(static_cast<uint32_t>(a & UINT32_MAX));
     digits.push_back(static_cast<uint32_t>((a >> 32) & UINT32_MAX));
-    further = 0;
 }
 
-big_integer::big_integer(const big_integer &a) {
+big_integer::big_integer(const big_integer &a)
+    : further(a.further)
+    , digits(a.digits) {
     digits = a.digits;
     further = a.further;
 }
@@ -84,17 +112,17 @@ big_integer::big_integer(const std::string &s) {
         return;
     }
     size_t i = 0;
-    int sign = 1;
+    bool sign = false;
     if (s[0] == '-') {
         i++;
-        sign = -1;
+        sign = true;
     }
     for (; i < s.size(); ++i) {
-        if (!isalnum(s[i])) {
-            throw std::runtime_error("Incorrect string format");
-        }
         *this *= 10;
-        *this += sign * (s[i] - '0');
+        *this += (s[i] - '0');
+    }
+    if (sign) {
+        negate(*this);
     }
 }
 
@@ -128,7 +156,7 @@ big_integer &big_integer::operator=(const big_integer &a) {
 }
 
 bool operator==(const big_integer &a, const big_integer &b) {
-    return a.digits == b.digits && a.further == b.further;
+    return a.further == b.further && unsigned_cmp(a, b) == 0;
 }
 
 bool operator!=(const big_integer &a, const big_integer &b) {
@@ -166,15 +194,7 @@ big_integer operator~(big_integer a) {
 }
 
 big_integer &operator&=(big_integer &a, const big_integer &b) {
-    trim(a, b.digits.size());
-    for (size_t i = 0; i < a.digits.size(); ++i) {
-        a.digits[i] &= b[i];
-    }
-    a.further &= b.further;
-    while (a.digits.size() > 1 && a.digits.back() == a.further) {
-        a.digits.pop_back();
-    }
-    return a;
+    return bitwise(a, b, and_);
 }
 
 big_integer operator&(big_integer a, const big_integer &b) {
@@ -182,15 +202,7 @@ big_integer operator&(big_integer a, const big_integer &b) {
 }
 
 big_integer &operator|=(big_integer &a, const big_integer &b) {
-    trim(a, b.digits.size());
-    for (size_t i = 0; i < a.digits.size(); ++i) {
-        a.digits[i] |= b[i];
-    }
-    a.further |= b.further;
-    while (a.digits.size() > 1 && a.digits.back() == a.further) {
-        a.digits.pop_back();
-    }
-    return a;
+    return bitwise(a, b, or_);
 }
 
 big_integer operator|(big_integer a, const big_integer &b) {
@@ -198,15 +210,7 @@ big_integer operator|(big_integer a, const big_integer &b) {
 }
 
 big_integer &operator^=(big_integer &a, const big_integer &b) {
-    trim(a, b.digits.size());
-    for (size_t i = 0; i < a.digits.size(); ++i) {
-        a.digits[i] ^= b[i];
-    }
-    a.further ^= b.further;
-    while (a.digits.size() > 1 && a.digits.back() == a.further) {
-        a.digits.pop_back();
-    }
-    return a;
+    return bitwise(a, b, xor_);
 }
 
 big_integer operator^(big_integer a, const big_integer &b) {
@@ -382,9 +386,7 @@ big_integer operator*(big_integer a, big_integer b) {
             d = static_cast<uint32_t>(cur >> 32);
         }
     }
-    while (c.digits.size() > 1 && c.digits.back() == c.further) {
-        c.digits.pop_back();
-    }
+    shrink(c);
     if (sign == -1) {
         negate(c);
     }
@@ -412,9 +414,7 @@ big_integer div_long_short(big_integer a, uint32_t b) {
             break;
         }
     }
-    while (a.digits.size() > 1 && a.digits.back() == a.further) {
-        a.digits.pop_back();
-    }
+    shrink(a);
     if (sign == -1) {
         negate(a);
     }
@@ -466,7 +466,7 @@ void unsigned_div(big_integer &a, big_integer &b, big_integer &q, big_integer &r
     b >>= t;
 }
 
-uint32_t div_3_2(uint32_t a2, uint32_t a1, uint32_t a0, uint32_t b1, uint32_t b0) {
+static uint32_t div_3_2(uint32_t a2, uint32_t a1, uint32_t a0, uint32_t b1, uint32_t b0) {
     uint64_t q = ((static_cast<uint64_t>(a2) << 32) + a1) / b1;
     while (true) {
         uint32_t c2, c1, c0;
