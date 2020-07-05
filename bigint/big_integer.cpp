@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-void trim(big_integer &a, size_t s) {
+void expand(big_integer &a, size_t s) {
     while (a.digits.size() < s) {
         a.digits.push_back(a.further);
     }
@@ -17,34 +17,11 @@ void shrink(big_integer &a) {
 
 uint32_t big_integer::operator[](size_t index) const {
     return (index < digits.size() ? digits[index] : further);
-}
-
-static std::function<uint32_t(uint32_t, uint32_t, uint32_t&)> adc =
-        [](uint32_t a, uint32_t b, uint32_t &d) {
-    uint32_t c = a + b + d;
-    d = (c < a || (d == 1 && c <= a));
-    return c;
-};
-
-static std::function<uint32_t(uint32_t, uint32_t, uint32_t&)> sbb =
-        [](uint32_t a, uint32_t b, uint32_t &d) {
-    uint32_t c = a + ~b + d;
-    d = (c < a || (d == 1 && c <= a));
-    return c;
-};
-
-static std::function<uint32_t(uint32_t, uint32_t)> and_ =
-        [](uint32_t a, uint32_t b) { return a & b; };
-
-static std::function<uint32_t(uint32_t, uint32_t)> or_ =
-        [](uint32_t a, uint32_t b) { return a | b; };
-
-static std::function<uint32_t(uint32_t, uint32_t)> xor_ =
-        [](uint32_t a, uint32_t b) { return a ^ b; };
+}        
 
 big_integer &evaluate(big_integer &a, const big_integer &b, uint32_t d,
-    std::function<uint32_t(uint32_t, uint32_t, uint32_t&)> &eval) {
-    trim(a, b.digits.size());
+    std::function<uint32_t(uint32_t, uint32_t, uint32_t&)> eval) {
+    expand(a, b.digits.size());
     a.digits.push_back(a.further);
     for (size_t i = 0; i < a.digits.size(); ++i) {
         a.digits[i] = eval(a.digits[i], b[i], d);
@@ -56,8 +33,8 @@ big_integer &evaluate(big_integer &a, const big_integer &b, uint32_t d,
 }
 
 big_integer &bitwise(big_integer &a, const big_integer &b,
-    std::function<uint32_t(uint32_t, uint32_t)> &eval) {
-    trim(a, b.digits.size());
+    std::function<uint32_t(uint32_t, uint32_t)> eval) {
+    expand(a, b.digits.size());
     for (size_t i = 0; i < a.digits.size(); ++i) {
         a.digits[i] = eval(a.digits[i], b[i]);
     }
@@ -68,14 +45,11 @@ big_integer &bitwise(big_integer &a, const big_integer &b,
 }
 
 int unsigned_cmp(const big_integer &a, const big_integer &b) {
-    for (size_t i = std::max(a.digits.size(), b.digits.size()) - 1;; --i) {
+    for (size_t i = std::max(a.digits.size(), b.digits.size()); i-- > 0;) {
         if (a[i] > b[i]) {
             return 1;
         } else if (b[i] > a[i]) {
             return -1;
-        }
-        if (i == 0) {
-            break;
         }
     }
     return 0;
@@ -168,10 +142,8 @@ bool operator!=(const big_integer &a, const big_integer &b) {
 }
 
 bool operator>(const big_integer &a, const big_integer &b) {
-    if (a.further < b.further) {
-        return true;
-    } else if (a.further > b.further) {
-        return false;
+    if (a.further != b.further) {
+        return a.further < b.further;
     } else {
         return unsigned_cmp(a, b) == 1;
     }
@@ -198,7 +170,7 @@ big_integer operator~(big_integer a) {
 }
 
 big_integer &operator&=(big_integer &a, const big_integer &b) {
-    return bitwise(a, b, and_);
+    return bitwise(a, b, [](uint32_t a, uint32_t b) { return a & b; });
 }
 
 big_integer operator&(big_integer a, const big_integer &b) {
@@ -206,7 +178,7 @@ big_integer operator&(big_integer a, const big_integer &b) {
 }
 
 big_integer &operator|=(big_integer &a, const big_integer &b) {
-    return bitwise(a, b, or_);
+    return bitwise(a, b, [](uint32_t a, uint32_t b) { return a | b; });
 }
 
 big_integer operator|(big_integer a, const big_integer &b) {
@@ -214,7 +186,7 @@ big_integer operator|(big_integer a, const big_integer &b) {
 }
 
 big_integer &operator^=(big_integer &a, const big_integer &b) {
-    return bitwise(a, b, xor_);
+    return bitwise(a, b, [](uint32_t a, uint32_t b) { return a ^ b; });
 }
 
 big_integer operator^(big_integer a, const big_integer &b) {
@@ -228,12 +200,9 @@ big_integer &operator<<=(big_integer &a, int s) {
         return a >>= -s;
     } else {
         uint32_t s1 = s / 32;
-        trim(a, a.digits.size() + s1);
-        for (size_t i = a.digits.size() - 1;; --i) {
+        expand(a, a.digits.size() + s1);
+        for (size_t i = a.digits.size(); i-- > 0;) {
             a.digits[i] = (i >= s1 ? a.digits[i - s1] : 0);
-            if (i == 0) {
-                break;
-            }
         }
         s %= 32;
         if (s != 0) {
@@ -285,7 +254,11 @@ big_integer operator+(const big_integer &a) {
 }
 
 big_integer &operator+=(big_integer &a, const big_integer &b) {
-    return evaluate(a, b, 0, adc);
+    return evaluate(a, b, 0, [](uint32_t a, uint32_t b, uint32_t &d) {
+        uint32_t c = a + b + d;
+        d = (c < a || (d == 1 && c <= a));
+        return c;
+    });
 }
 
 big_integer operator+(big_integer a, const big_integer &b) {
@@ -294,7 +267,7 @@ big_integer operator+(big_integer a, const big_integer &b) {
 
 big_integer& operator++(big_integer &a) {
     size_t i = 0;
-    for (; i < a.digits.size() && a.digits[i] == (uint32_t)-1; ++i) {
+    for (; i < a.digits.size() && a.digits[i] == ~0u; ++i) {
         a.digits[i] = 0;
     }
     if (i < a.digits.size()) {
@@ -329,7 +302,11 @@ big_integer operator-(big_integer a) {
 }
 
 big_integer &operator-=(big_integer &a, const big_integer &b) {
-    return evaluate(a, b, 1, sbb);
+    return evaluate(a, b, 1, [](uint32_t a, uint32_t b, uint32_t &d) {
+        uint32_t c = a + ~b + d;
+        d = (c < a || (d == 1 && c <= a));
+        return c;
+    });
 }
 
 big_integer operator-(big_integer a, const big_integer &b) {
@@ -380,7 +357,7 @@ big_integer operator*(big_integer a, big_integer b) {
     }
     big_integer c;
     uint32_t n = a.digits.size(), m = b.digits.size();
-    trim(c, n + m);
+    expand(c, n + m);
     for (size_t i = 0; i < n; ++i) {
         uint32_t d = 0;
         for (size_t j = 0; j < m || d; ++j) {
@@ -409,14 +386,11 @@ big_integer div_long_short(big_integer a, uint32_t b) {
     }
     size_t n = a.digits.size();
     uint32_t d = 0;
-    for (size_t i = n - 1;; --i) {
+    for (size_t i = n; i-- > 0;) {
         uint64_t cur = a.digits[i] +
                 (static_cast<uint64_t>(d) << 32);
         a.digits[i] = static_cast<uint32_t>(cur / b & UINT32_MAX);
         d = static_cast<uint32_t>(cur % b & UINT32_MAX);
-        if (i == 0) {
-            break;
-        }
     }
     shrink(a);
     if (sign == -1) {
@@ -434,25 +408,23 @@ big_integer suffix(const big_integer &a, size_t len) {
     return b;
 }
 
-void unsigned_div(big_integer &a, big_integer &b, big_integer &q, big_integer &r) {
+big_integer unsigned_div(big_integer &a, big_integer &b) {
     if (a < b) {
-        q = 0;
-        r = a;
-        return;
+        return 0;
     }
     uint32_t x = (1u << 31), t = 0;
-        while ((b.digits.back() & x) == 0) {
-            x >>= 1;
-            t++;
-        }
+    while ((b.digits.back() & x) == 0) {
+         x >>= 1;
+         t++;
+    }
     a <<= t;
     b <<= t;
     uint32_t q1;
     size_t n = a.digits.size(), m = b.digits.size();
+    big_integer q, r;
     if (n == m) {
         unsigned_div_small_ans(a, b, q1, r);
-        q = q1;
-        return;
+        return q1;
     }
     r = suffix(a, m);
     unsigned_div_small_ans(r, b, q1, r);
@@ -466,8 +438,7 @@ void unsigned_div(big_integer &a, big_integer &b, big_integer &q, big_integer &r
             q.digits[0] = q1;
         }
     }
-    a >>= t;
-    b >>= t;
+    return q;
 }
 
 static uint32_t div_3_2(uint32_t a2, uint32_t a1, uint32_t a0, uint32_t b1, uint32_t b0) {
@@ -528,8 +499,7 @@ big_integer operator/(big_integer a, big_integer b) {
     if (a < b) {
         return 0;
     }
-    big_integer q, r;
-    unsigned_div(a, b, q, r);
+    big_integer q = unsigned_div(a, b);
     if (sign == -1) {
         negate(q);
     }

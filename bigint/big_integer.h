@@ -10,19 +10,19 @@ class big_integer {
 
     uint32_t operator[](size_t) const;
 
-    friend void trim(big_integer&, size_t);
+    friend void expand(big_integer&, size_t);
     friend void shrink(big_integer&);
 
     friend big_integer &evaluate(big_integer&, const big_integer&, uint32_t,
-        std::function<uint32_t(uint32_t, uint32_t, uint32_t&)>&);
+        std::function<uint32_t(uint32_t, uint32_t, uint32_t&)>);
     friend big_integer &bitwise(big_integer&, const big_integer&,
-        std::function<uint32_t(uint32_t, uint32_t)>&);
+        std::function<uint32_t(uint32_t, uint32_t)>);
 
     friend int unsigned_cmp(const big_integer&, const big_integer&);
 
     friend big_integer div_long_short(big_integer, uint32_t);
 
-    friend void unsigned_div(big_integer&, big_integer&, big_integer&, big_integer&);
+    friend big_integer unsigned_div(big_integer&, big_integer&);
     friend void unsigned_div_small_ans(big_integer&, big_integer&, uint32_t&, big_integer&);
     friend big_integer suffix(const big_integer&, size_t);
 
