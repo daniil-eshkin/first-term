@@ -9,11 +9,11 @@ void trim(big_integer &a, size_t s) {
     }
 }
 
-void shrink(big_integer &a) {
+/*void shrink(big_integer &a) {
     while (a.digits.size() > 1 && a.digits.back() == a.further) {
         a.digits.pop_back();
     }
-}
+}*/
 
 uint32_t big_integer::operator[](size_t index) const {
     return (index < digits.size() ? digits[index] : further);
@@ -46,7 +46,10 @@ big_integer &evaluate(big_integer &a, const big_integer &b, uint32_t d,
         a.digits[i] = eval(a.digits[i], b[i], d);
     }
     a.further = (a.digits.back() & 2 ? ~0 : 0);
-    shrink(a);
+    //shrink(a);
+    while (a.digits.size() > 1 && a.digits.back() == a.further) {
+        a.digits.pop_back();
+    }
 
     return a;
 }
@@ -55,10 +58,13 @@ big_integer &bitwise(big_integer &a, const big_integer &b,
     std::function<uint32_t(uint32_t, uint32_t)> &eval) {
     trim(a, b.digits.size());
     for (size_t i = 0; i < a.digits.size(); ++i) {
-        a.digits[i] = eval(a[i], b[i]);
+        a.digits[i] = eval(a.digits[i], b[i]);
     }
     a.further = eval(a.further, b.further);
-    shrink(a);
+    //shrink(a);
+    while (a.digits.size() > 1 && a.digits.back() == a.further) {
+        a.digits.pop_back();
+    }
 
     return a;
 }
@@ -386,7 +392,10 @@ big_integer operator*(big_integer a, big_integer b) {
             d = static_cast<uint32_t>(cur >> 32);
         }
     }
-    shrink(c);
+    //shrink(c);
+    while (c.digits.size() > 1 && c.digits.back() == c.further) {
+        c.digits.pop_back();
+    }
     if (sign == -1) {
         negate(c);
     }
@@ -414,7 +423,10 @@ big_integer div_long_short(big_integer a, uint32_t b) {
             break;
         }
     }
-    shrink(a);
+    //shrink(a);
+    while (a.digits.size() > 1 && a.digits.back() == a.further) {
+        a.digits.pop_back();
+    }
     if (sign == -1) {
         negate(a);
     }
