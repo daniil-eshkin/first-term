@@ -1,7 +1,4 @@
 #include "big_integer.h"
-#include <cmath>
-#include <algorithm>
-#include <stdexcept>
 
 void expand(big_integer &a, size_t s) {
     while (a.digits.size() < s) {
@@ -26,7 +23,7 @@ big_integer &evaluate(big_integer &a, const big_integer &b, uint32_t d,
     for (size_t i = 0; i < a.digits.size(); ++i) {
         a.digits[i] = eval(a.digits[i], b[i], d);
     }
-    a.further = (a.digits.back() & 2 ? ~0 : 0);
+    a.further = (a.digits.back() & 2 ? UINT32_MAX : 0);
     shrink(a);
 
     return a;
@@ -61,7 +58,7 @@ big_integer::big_integer()
 }
 
 big_integer::big_integer(int a)
-    : further(a < 0 ? ~0 : 0) {
+    : further(a < 0 ? UINT32_MAX : 0) {
     digits.push_back(a);
 }
 
@@ -78,10 +75,7 @@ big_integer::big_integer(uint64_t a)
 
 big_integer::big_integer(const big_integer &a)
     : further(a.further)
-    , digits(a.digits) {
-    digits = a.digits;
-    further = a.further;
-}
+    , digits(a.digits) {}
 
 big_integer::big_integer(const std::string &s) {
     digits.push_back(0);
@@ -267,7 +261,7 @@ big_integer operator+(big_integer a, const big_integer &b) {
 
 big_integer& operator++(big_integer &a) {
     size_t i = 0;
-    for (; i < a.digits.size() && a.digits[i] == ~0u; ++i) {
+    for (; i < a.digits.size() && a.digits[i] == UINT32_MAX; ++i) {
         a.digits[i] = 0;
     }
     if (i < a.digits.size()) {
@@ -275,9 +269,8 @@ big_integer& operator++(big_integer &a) {
     } else {
         if (a.further == 0) {
             a.digits.push_back(1);
-        } else {
-            a.further = 0;
         }
+        a.further = 0;
     }
     return a;
 }
@@ -316,15 +309,15 @@ big_integer operator-(big_integer a, const big_integer &b) {
 big_integer& operator--(big_integer &a) {
     size_t i = 0;
     for (; i < a.digits.size() && a.digits[i] == 0; ++i) {
-        a.digits[i] = ~0;
+        a.digits[i] = UINT32_MAX;
     }
     if (i < a.digits.size()) {
         --a.digits[i];
     } else {
         if (a.further == 0) {
-            a.further = ~0;
+            a.further = UINT32_MAX;
         } else {
-            a.digits.push_back(~0 - 1);
+            a.digits.push_back(UINT32_MAX - 1);
         }
     }
     return a;

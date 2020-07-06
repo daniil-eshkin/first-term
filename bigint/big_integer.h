@@ -3,6 +3,9 @@
 #include <vector>
 #include <string>
 #include <functional>
+#include <cmath>
+#include <algorithm>
+#include <stdexcept>
 
 class big_integer {
     uint32_t further;
