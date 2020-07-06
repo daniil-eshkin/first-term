@@ -44,7 +44,11 @@ uint32_t const &opt_vector::back() const {
 }
 
 void opt_vector::push_back(uint32_t a) {
-    new_buffer(size_ == capacity_ ? increase_capacity() : capacity_);
+    if (data_.use_count() > 1) {
+        new_buffer(size_ == capacity_ ? increase_capacity() : capacity_);
+    } else if (size_ == capacity_) {
+        new_buffer(increase_capacity());
+    }
     data_.get()[size_++] = a;
 }
 
