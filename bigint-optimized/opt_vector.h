@@ -4,20 +4,34 @@
 #include <cstdint>
 #include <algorithm>
 #include <cstring>
-#include <memory>
+
+struct dynamic_buffer {
+    size_t capacity;
+    size_t ref_count;
+    uint32_t *data;
+    ~dynamic_buffer() {
+        operator delete(data);
+    }
+};
 
 class opt_vector {
-    size_t size_;
-    size_t capacity_;
-    std::shared_ptr<uint32_t> data_;
+    static const size_t STATIC_CAPACITY = 2;
+
+    size_t size_info; //size() and is_small()
+    union {
+        uint32_t static_data[STATIC_CAPACITY];
+        dynamic_buffer *dynamic;
+    } storage_;
 
     size_t increase_capacity() const;
     void new_buffer(size_t);
     uint32_t *allocate(size_t);
     void unshare();
+    void to_big();
+    bool is_small() const;
 public:
     opt_vector();
-    ~opt_vector() = default;
+    ~opt_vector();
     opt_vector(const opt_vector&);
 
     opt_vector &operator=(const opt_vector&);
