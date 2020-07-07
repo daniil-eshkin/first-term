@@ -1,13 +1,11 @@
 #include "opt_vector.h"
 
 opt_vector::opt_vector()
-    : size_info(1) {}
+    : size_info(1) {} //size 0, small flag true
 
 opt_vector::~opt_vector() {
     if (!is_small()) {
-        if (--storage_.dynamic->ref_count == 0) {
-            delete storage_.dynamic;
-        }
+        delete_buffer();
     }
 }
 
@@ -32,6 +30,10 @@ opt_vector &opt_vector::operator=(const opt_vector &v) {
 
 size_t opt_vector::size() const {
     return size_info >> 1;
+}
+
+uint32_t *opt_vector::data() {
+    return (is_small() ? storage_.static_data : storage_.dynamic->data);
 }
 
 uint32_t &opt_vector::operator[](size_t index) {
@@ -63,11 +65,12 @@ void opt_vector::push_back(uint32_t a) {
     if (is_small()) {
         if (size() == STATIC_CAPACITY) {
             to_big();
+            storage_.dynamic->data[size()] = a;
         } else {
             storage_.static_data[size()] = a;
-            size_info += 2;
-            return;
         }
+        size_info += 2; //size++
+        return;
     }
     if (storage_.dynamic->ref_count > 1) {
         new_buffer(size() == storage_.dynamic->capacity ?
@@ -76,18 +79,16 @@ void opt_vector::push_back(uint32_t a) {
         new_buffer(increase_capacity());
     }
     storage_.dynamic->data[size()] = a;
-    size_info += 2;
+    size_info += 2; //size++
 }
 
 void opt_vector::pop_back() {
-    size_info -= 2;
+    size_info -= 2; //size--
 }
 
 void opt_vector::clear() {
-    size_info = 1;
-    if (--storage_.dynamic->ref_count == 0) {
-        delete storage_.dynamic;
-    }
+    size_info = 1; //set size to 0 and small flag to true
+    delete_buffer();
 }
 
 void opt_vector::swap(opt_vector &v) {
@@ -99,22 +100,16 @@ size_t opt_vector::increase_capacity() const {
     return storage_.dynamic->capacity == 0 ? 1 : storage_.dynamic->capacity * 2;
 }
 
-void opt_vector::new_buffer(size_t new_capacity) {
-    dynamic_buffer *new_data = new dynamic_buffer;
-    new_data->capacity = new_capacity;
-    new_data->ref_count = 1;
-    new_data->data = allocate(new_capacity);
+void opt_vector::new_buffer(size_t new_capacity) { //result: unique big
+    dynamic_buffer *new_data = new dynamic_buffer(new_capacity);
     if (size() != 0) {
-        memcpy(new_data->data, storage_.dynamic->data, sizeof(uint32_t) * size());
+        memcpy(new_data->data, data(), sizeof(uint32_t) * size());
     }
-    if (--storage_.dynamic->ref_count == 0) {
-        delete storage_.dynamic;
+    if (!is_small()) {
+        delete_buffer();
     }
     storage_.dynamic = new_data;
-}
-
-uint32_t *opt_vector::allocate(size_t size) {
-    return (size == 0 ? nullptr : reinterpret_cast<uint32_t*>(operator new(size * sizeof(uint32_t))));
+    size_info &= UINT32_MAX - 1; //set small flag to false
 }
 
 void opt_vector::unshare() {
@@ -122,18 +117,15 @@ void opt_vector::unshare() {
 }
 
 void opt_vector::to_big() {
-    uint32_t a0 = storage_.static_data[0];
-    uint32_t a1 = storage_.static_data[1];
-    dynamic_buffer *new_data = new dynamic_buffer;
-    new_data->capacity = STATIC_CAPACITY;
-    new_data->ref_count = 1;
-    new_data->data = allocate(STATIC_CAPACITY);
-    storage_.dynamic = new_data;
-    storage_.dynamic->data[0] = a0;
-    storage_.dynamic->data[1] = a1;
-    size_info ^= 1;
+    new_buffer(STATIC_CAPACITY * 2);
 }
 
 bool opt_vector::is_small() const {
     return size_info & 1;
+}
+
+void opt_vector::delete_buffer() {
+    if (--storage_.dynamic->ref_count == 0) {
+        delete storage_.dynamic;
+    }
 }

@@ -9,6 +9,8 @@ add_executable(big_integer_testing
                big_integer_testing.cpp
                opt_vector.h
                opt_vector.cpp
+               dynamic_buffer.h
+               dynamic_buffer.cpp
                big_integer.h
                big_integer.cpp
                gtest/gtest-all.cc

@@ -1,34 +1,24 @@
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-#include <algorithm>
+#include "dynamic_buffer.h"
+#include <utility>
 #include <cstring>
 
-struct dynamic_buffer {
-    size_t capacity;
-    size_t ref_count;
-    uint32_t *data;
-    ~dynamic_buffer() {
-        operator delete(data);
-    }
-};
-
 class opt_vector {
-    static const size_t STATIC_CAPACITY = 2;
+    static const size_t STATIC_CAPACITY = (sizeof(dynamic_buffer*) + 3) / 4;
 
-    size_t size_info; //size() and is_small()
+    size_t size_info;
     union {
         uint32_t static_data[STATIC_CAPACITY];
         dynamic_buffer *dynamic;
     } storage_;
 
     size_t increase_capacity() const;
-    void new_buffer(size_t);
-    uint32_t *allocate(size_t);
+    void new_buffer(size_t); //result: unique big
     void unshare();
     void to_big();
     bool is_small() const;
+    void delete_buffer();
 public:
     opt_vector();
     ~opt_vector();
@@ -37,6 +27,7 @@ public:
     opt_vector &operator=(const opt_vector&);
 
     size_t size() const;
+    uint32_t *data();
     uint32_t &operator[](size_t index);
     uint32_t const &operator[](size_t index) const;
     uint32_t &back();
