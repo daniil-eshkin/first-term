@@ -1,77 +1,91 @@
-#ifndef BIG_INTEGER_H
-#define BIG_INTEGER_H
+#pragma once
 
-#include <cstddef>
-#include <gmp.h>
-#include <iosfwd>
+#include "opt_vector.h"
+#include <string>
+#include <functional>
+#include <cmath>
+#include <algorithm>
+#include <stdexcept>
 
-struct big_integer
-{
+class big_integer {
+    uint32_t further;
+    opt_vector digits;
+
+    uint32_t operator[](size_t) const;
+
+    friend void expand(big_integer&, size_t);
+    friend void shrink(big_integer&);
+
+    friend big_integer &evaluate(big_integer&, const big_integer&, uint32_t,
+        std::function<uint32_t(uint32_t, uint32_t, uint32_t&)>);
+    friend big_integer &bitwise(big_integer&, const big_integer&,
+        std::function<uint32_t(uint32_t, uint32_t)>);
+
+    friend int unsigned_cmp(const big_integer&, const big_integer&);
+
+    friend big_integer div_long_short(big_integer, uint32_t);
+
+    friend big_integer unsigned_div(big_integer&, big_integer&);
+    friend void unsigned_div_small_ans(big_integer&, big_integer&, uint32_t&, big_integer&);
+    friend big_integer suffix(const big_integer&, size_t);
+
+    friend void negate(big_integer&);
+
+public:
     big_integer();
-    big_integer(big_integer const& other);
-    big_integer(int a);
-    explicit big_integer(std::string const& str);
-    ~big_integer();
+    big_integer(int);
+    big_integer(uint32_t);
+    big_integer(uint64_t);
+    big_integer(const big_integer &);
+    ~big_integer() = default;
+    explicit big_integer(const std::string&);
 
-    big_integer& operator=(big_integer const& other);
+    friend std::string to_string(big_integer);
 
-    big_integer& operator+=(big_integer const& rhs);
-    big_integer& operator-=(big_integer const& rhs);
-    big_integer& operator*=(big_integer const& rhs);
-    big_integer& operator/=(big_integer const& rhs);
-    big_integer& operator%=(big_integer const& rhs);
+    big_integer& operator=(const big_integer&);
 
-    big_integer& operator&=(big_integer const& rhs);
-    big_integer& operator|=(big_integer const& rhs);
-    big_integer& operator^=(big_integer const& rhs);
+    friend bool operator==(const big_integer&, const big_integer&);
+    friend bool operator!=(const big_integer&, const big_integer&);
+    friend bool operator>(const big_integer&, const big_integer&);
+    friend bool operator<(const big_integer&, const big_integer&);
+    friend bool operator>=(const big_integer&, const big_integer&);
+    friend bool operator<=(const big_integer&, const big_integer&);
 
-    big_integer& operator<<=(int rhs);
-    big_integer& operator>>=(int rhs);
+    friend big_integer operator~(big_integer);
 
-    big_integer operator+() const;
-    big_integer operator-() const;
-    big_integer operator~() const;
+    friend big_integer &operator&=(big_integer&, const big_integer&);
+    friend big_integer operator&(big_integer, const big_integer&);
 
-    big_integer& operator++();
-    big_integer operator++(int);
+    friend big_integer &operator|=(big_integer&, const big_integer&);
+    friend big_integer operator|(big_integer, const big_integer&);
 
-    big_integer& operator--();
-    big_integer operator--(int);
+    friend big_integer &operator^=(big_integer&, const big_integer&);
+    friend big_integer operator^(big_integer, const big_integer&);
 
-    friend bool operator==(big_integer const& a, big_integer const& b);
-    friend bool operator!=(big_integer const& a, big_integer const& b);
-    friend bool operator<(big_integer const& a, big_integer const& b);
-    friend bool operator>(big_integer const& a, big_integer const& b);
-    friend bool operator<=(big_integer const& a, big_integer const& b);
-    friend bool operator>=(big_integer const& a, big_integer const& b);
+    friend big_integer &operator<<=(big_integer&, int);
+    friend big_integer operator<<(big_integer, int);
 
-    friend std::string to_string(big_integer const& a);
+    friend big_integer &operator>>=(big_integer&, int);
+    friend big_integer operator>>(big_integer, int);
 
-private:
-    mpz_t mpz;
+    friend big_integer operator+(const big_integer&);
+    friend big_integer &operator+=(big_integer&, const big_integer&);
+    friend big_integer operator+(big_integer, const big_integer&);
+    friend big_integer &operator++(big_integer&);
+    friend big_integer operator++(big_integer&, int);
+
+    friend big_integer operator-(big_integer);
+    friend big_integer &operator-=(big_integer&, const big_integer&);
+    friend big_integer operator-(big_integer, const big_integer&);
+    friend big_integer &operator--(big_integer&);
+    friend big_integer operator--(big_integer&, int);
+
+    friend big_integer &operator*=(big_integer&, const big_integer&);
+    friend big_integer operator*(big_integer, big_integer);
+
+    friend big_integer &operator/=(big_integer&, const big_integer&);
+    friend big_integer operator/(big_integer, big_integer);
+
+    friend big_integer &operator%=(big_integer&, const big_integer&);
+    friend big_integer operator%(big_integer, const big_integer&);
 };
-
-big_integer operator+(big_integer a, big_integer const& b);
-big_integer operator-(big_integer a, big_integer const& b);
-big_integer operator*(big_integer a, big_integer const& b);
-big_integer operator/(big_integer a, big_integer const& b);
-big_integer operator%(big_integer a, big_integer const& b);
-
-big_integer operator&(big_integer a, big_integer const& b);
-big_integer operator|(big_integer a, big_integer const& b);
-big_integer operator^(big_integer a, big_integer const& b);
-
-big_integer operator<<(big_integer a, int b);
-big_integer operator>>(big_integer a, int b);
-
-bool operator==(big_integer const& a, big_integer const& b);
-bool operator!=(big_integer const& a, big_integer const& b);
-bool operator<(big_integer const& a, big_integer const& b);
-bool operator>(big_integer const& a, big_integer const& b);
-bool operator<=(big_integer const& a, big_integer const& b);
-bool operator>=(big_integer const& a, big_integer const& b);
-
-std::string to_string(big_integer const& a);
-std::ostream& operator<<(std::ostream& s, big_integer const& a);
-
-#endif // BIG_INTEGER_H
